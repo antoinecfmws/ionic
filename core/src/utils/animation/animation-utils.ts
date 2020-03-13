@@ -1,5 +1,17 @@
 import { AnimationKeyFrames } from './animation-interface';
 
+export const getAnimationCSSPosition = (el: HTMLElement, keyframeName: string | undefined): number => {
+  if (keyframeName === undefined) { return -1; }
+
+  const animationString = el.style.getPropertyValue('animation-name');
+  const useAlternate = animationString.includes(`${keyframeName}-alt`);
+  const stringSplit = animationString.split(', ');
+
+  const stringName = useAlternate ? `${keyframeName}-alt` : keyframeName;
+
+  return stringSplit.indexOf(stringName);
+};
+
 /**
  * Web Animations requires hyphenated CSS properties
  * to be written in camelCase when animating
@@ -44,9 +56,19 @@ export const getAnimationPrefix = (el: HTMLElement): string => {
   return animationPrefix;
 };
 
-export const setStyleProperty = (element: HTMLElement, propertyName: string, value: string | null) => {
+export const setStyleProperty = (element: HTMLElement, propertyName: string, value: string | null, cssPosition = -1) => {
   const prefix = propertyName.startsWith('animation') ? getAnimationPrefix(element) : '';
-  element.style.setProperty(prefix + propertyName, value);
+
+  const currentValue = element.style.getPropertyValue(prefix + propertyName);
+  const split = (currentValue.length === 0) ? [] : currentValue.split(',');
+
+  if (cssPosition > -1) {
+    split[cssPosition] = value || '';
+  } else {
+    split.push(value || '');
+  }
+
+  element.style.setProperty(prefix + propertyName, split.join(', '));
 };
 
 export const removeStyleProperty = (element: HTMLElement, propertyName: string) => {

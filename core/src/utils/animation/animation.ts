@@ -3,7 +3,7 @@
 import { raf } from '../helpers';
 
 import { Animation, AnimationCallbackOptions, AnimationDirection, AnimationFill, AnimationKeyFrame, AnimationKeyFrameEdge, AnimationKeyFrames, AnimationLifecycle, AnimationPlayOptions } from './animation-interface';
-import { addClassToArray, animationEnd, createKeyframeStylesheet, generateKeyframeName, generateKeyframeRules, processKeyframes, removeStyleProperty, setStyleProperty } from './animation-utils';
+import { addClassToArray, animationEnd, createKeyframeStylesheet, generateKeyframeName, generateKeyframeRules, getAnimationCSSPosition, processKeyframes, removeStyleProperty, setStyleProperty } from './animation-utils';
 
 interface AnimationOnFinishCallback {
   c: AnimationLifecycle;
@@ -507,35 +507,38 @@ export const createAnimation = (animationId?: string): Animation => {
     cleanUpStyleSheets();
 
     const processedKeyframes = processKeyframes(_keyframes);
-    elements.forEach(element => {
-      if (processedKeyframes.length > 0) {
-        const keyframeRules = generateKeyframeRules(processedKeyframes);
-        keyframeName = (animationId !== undefined) ? animationId : generateKeyframeName(keyframeRules);
-        const stylesheet = createKeyframeStylesheet(keyframeName, keyframeRules, element);
+    if (processedKeyframes.length > 0) {
+      const keyframeRules = generateKeyframeRules(processedKeyframes);
+      keyframeName = (animationId !== undefined) ? animationId : generateKeyframeName(keyframeRules);
+
+      elements.forEach(element => {
+        const stylesheet = createKeyframeStylesheet(keyframeName!, keyframeRules, element);
         stylesheets.push(stylesheet);
 
-        setStyleProperty(element, 'animation-duration', `${getDuration()}ms`);
-        setStyleProperty(element, 'animation-timing-function', getEasing());
-        setStyleProperty(element, 'animation-delay', `${getDelay()}ms`);
-        setStyleProperty(element, 'animation-fill-mode', getFill());
-        setStyleProperty(element, 'animation-direction', getDirection());
+        const position = getAnimationCSSPosition(element, keyframeName);
+        setStyleProperty(element, 'animation-duration', `${getDuration()}ms`, position);
+        setStyleProperty(element, 'animation-timing-function', getEasing(), position);
+        setStyleProperty(element, 'animation-delay', `${getDelay()}ms`, position);
+        setStyleProperty(element, 'animation-fill-mode', getFill(), position);
+        setStyleProperty(element, 'animation-direction', getDirection(), position);
 
         const iterationsCount = (getIterations() === Infinity)
           ? 'infinite'
           : getIterations().toString();
 
-        setStyleProperty(element, 'animation-iteration-count', iterationsCount);
-        setStyleProperty(element, 'animation-play-state', 'paused');
+        setStyleProperty(element, 'animation-iteration-count', iterationsCount, position);
+        setStyleProperty(element, 'animation-play-state', 'paused', position);
 
         if (toggleAnimationName) {
-          setStyleProperty(element, 'animation-name', `${stylesheet.id}-alt`);
+          setStyleProperty(element, 'animation-name', `${stylesheet.id}-alt`, position);
         }
 
         raf(() => {
-          setStyleProperty(element, 'animation-name', stylesheet.id || null);
+          const position = getAnimationCSSPosition(element, keyframeName);
+          setStyleProperty(element, 'animation-name', stylesheet.id || null, position);
         });
-      }
-    });
+      });
+    }
   };
 
   const initializeWebAnimation = () => {
@@ -590,8 +593,9 @@ export const createAnimation = (animationId?: string): Animation => {
 
       elements.forEach(element => {
         if (_keyframes.length > 0) {
-          setStyleProperty(element, 'animation-delay', animationDuration);
-          setStyleProperty(element, 'animation-play-state', 'paused');
+          const position = getAnimationCSSPosition(element, keyframeName);
+          setStyleProperty(element, 'animation-delay', animationDuration, position);
+          setStyleProperty(element, 'animation-play-state', 'paused', position);
         }
       });
     }
@@ -617,25 +621,27 @@ export const createAnimation = (animationId?: string): Animation => {
   const updateCSSAnimation = (toggleAnimationName = true, step?: number) => {
     raf(() => {
       elements.forEach(element => {
-        setStyleProperty(element, 'animation-name', keyframeName || null);
-        setStyleProperty(element, 'animation-duration', `${getDuration()}ms`);
-        setStyleProperty(element, 'animation-timing-function', getEasing());
-        setStyleProperty(element, 'animation-delay', (step !== undefined) ? `-${step! * getDuration()}ms` : `${getDelay()}ms`);
-        setStyleProperty(element, 'animation-fill-mode', getFill() || null);
-        setStyleProperty(element, 'animation-direction', getDirection() || null);
+        const position = getAnimationCSSPosition(element, keyframeName);
+        setStyleProperty(element, 'animation-name', keyframeName || null, position);
+        setStyleProperty(element, 'animation-duration', `${getDuration()}ms`, position);
+        setStyleProperty(element, 'animation-timing-function', getEasing(), position);
+        setStyleProperty(element, 'animation-delay', (step !== undefined) ? `-${step! * getDuration()}ms` : `${getDelay()}ms`, position);
+        setStyleProperty(element, 'animation-fill-mode', getFill() || null, position);
+        setStyleProperty(element, 'animation-direction', getDirection() || null, position);
 
         const iterationsCount = (getIterations() === Infinity)
           ? 'infinite'
           : getIterations().toString();
 
-        setStyleProperty(element, 'animation-iteration-count', iterationsCount);
+        setStyleProperty(element, 'animation-iteration-count', iterationsCount, position);
 
         if (toggleAnimationName) {
-          setStyleProperty(element, 'animation-name', `${keyframeName}-alt`);
+          setStyleProperty(element, 'animation-name', `${keyframeName}-alt`, position);
         }
 
         raf(() => {
-          setStyleProperty(element, 'animation-name', keyframeName || null);
+          const position = getAnimationCSSPosition(element, keyframeName);
+          setStyleProperty(element, 'animation-name', keyframeName || null, position);
         });
       });
     });
@@ -747,7 +753,8 @@ export const createAnimation = (animationId?: string): Animation => {
         });
       } else {
         elements.forEach(element => {
-          setStyleProperty(element, 'animation-play-state', 'paused');
+          const position = getAnimationCSSPosition(element, keyframeName);
+          setStyleProperty(element, 'animation-play-state', 'paused', position);
         });
       }
     }
@@ -780,7 +787,8 @@ export const createAnimation = (animationId?: string): Animation => {
     raf(() => {
       elements.forEach(element => {
         if (_keyframes.length > 0) {
-          setStyleProperty(element, 'animation-play-state', 'running');
+          const position = getAnimationCSSPosition(element, keyframeName);
+          setStyleProperty(element, 'animation-play-state', 'running', position);
         }
       });
     });
