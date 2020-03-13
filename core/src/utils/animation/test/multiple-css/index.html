@@ -14,47 +14,10 @@
   <script type="module">
     Element.prototype.animate = null;
     
-    import { createAnimation } from '../../../../dist/ionic/index.esm.js';
-
-    const squareA = document.querySelector('.square-a');
-    
-    const rootAnimation = createAnimation('root-animation-id');
-    const animationA = createAnimation('animation-a');
-    const animationB = createAnimation('animation-b');
-    
-    animationA
-      .addElement(squareA)
-      .fromTo('background', 'rgba(0, 0, 255, 0.5)', 'rgba(0, 0, 255, 1)')
-      
-    animationB
-      .addElement(squareA)
-      .fromTo('transform', 'scale(1)', 'scale(0.5)');
-    
-    rootAnimation
-      .duration(500)
-      .iterations(Infinity)
-      .easing('ease-in-out')
-      .direction('alternate')
-      .addAnimation([animationA, animationB]);
-      
-    document.querySelector('.play').addEventListener('click', () => {
-      rootAnimation.play();
-    });
-    
-    document.querySelector('.pause').addEventListener('click', () => {
-      rootAnimation.pause();
-    });
-    
-    document.querySelector('.stop').addEventListener('click', () => {
-      rootAnimation.stop();
-    });
-    
-    document.querySelector('.destroy').addEventListener('click', () => {
-      rootAnimation.destroy();
-    });
-    
+    import { createAnimation, createGesture } from '../../../../dist/ionic/index.esm.js';
+    window.createAnimation = createAnimation;
+    window.createGesture = createGesture;
   </script>
-  
   <style>
     .square {
       width: 100px;
@@ -62,9 +25,12 @@
       background: rgba(0, 0, 255, 0.5);
       text-align: center;
       line-height: 100px;
-      margin-left: 25px;
-      margin-top: 25px;
-      margin-bottom: 25px;
+    }
+    
+    .track {
+      width: 100%;
+      max-width: 500px;
+      background: rgba(0, 0, 0, 0.2);
     }
   </style>
   </head>
@@ -77,19 +43,141 @@
       </ion-toolbar>
     </ion-header>
     
-    <ion-content>
-      <div class="ion-padding">
-        <ion-button class="play">Play</ion-button>
-        <ion-button class="pause">Pause</ion-button>
-        <ion-button class="stop">Stop</ion-button>
-        <ion-button class="destroy">Destroy</ion-button>
-        
-        <div class="square square-a">
-          Hello
-        </div>
+    <ion-content class="ion-padding">
+      <ion-button class="play" onclick="play()">Play</ion-button>
+      <ion-button class="pause" onclick="pause()">Pause</ion-button>
+      <ion-button class="stop" onclick="stop()">Stop</ion-button>
+      <ion-button class="destroy" onclick="destroy()">Destroy</ion-button>
+      
+      <br><br>
+      
+      <div class="square square-a">Hello</div>
+      
+      <br><br>
+      
+      <div class="track">
+        <div class="square"></div>
       </div>
     </ion-content>
   </ion-app>
+  
+  <script>
+    const squareA = document.querySelector('.square-a');
+    let rootAnimation;
+      
+    const init = () => {
+      rootAnimation = createAnimation('root-animation-id');
+      
+      const animationA = createAnimation('animation-a');
+      const animationB = createAnimation('animation-b');
+      
+      animationA
+        .addElement(squareA)
+        .fromTo('background', 'rgba(0, 0, 255, 0.5)', 'rgba(0, 0, 255, 1)')
+        
+      animationB
+        .addElement(squareA)
+        .fromTo('transform', 'scale(1)', 'scale(0.5)');
+      
+      rootAnimation
+        .iterations(2)
+        .duration(500)
+        .easing('ease-in-out')
+        .direction('alternate')
+        .addAnimation([animationA, animationB]);
+    }  
+    
+    const play = () => {
+      if (!rootAnimation) { init(); }
+      rootAnimation.play();
+    };
+    
+    const pause = () => {
+      if (!rootAnimation) { init(); }
+      rootAnimation.pause();
+    };
+    
+    const stop = () => {
+      if (!rootAnimation) { init(); }
+      rootAnimation.stop();
+    };
+    
+    const destroy = () => {
+      if (!rootAnimation) { init(); }
+      rootAnimation.destroy();
+      rootAnimation = undefined;
+    };
+    
+    const initGesture = () => {
+      let initialStep = 0;
+      let started = false;
+      
+      const square = document.querySelector('.track .square');
+      const MAX_TRANSLATE = document.querySelector('.track').clientWidth - 100;
+      
+      const animationA = createAnimation()
+        .addElement(square)
+        .fromTo('transform', 'translateX(0)', `translateX(${MAX_TRANSLATE}px)`);
+        
+      const animationB = createAnimation()
+        .addElement(square)
+        .fromTo('opacity', '1' , '0.25');
+        
+      const rootAnimation = createAnimation()
+        .duration(1000)
+        .addAnimation([animationA, animationB]);
+      
+      const gesture = createGesture({
+        el: square,
+        threshold: 0,
+        onMove: ev => onMove(ev),
+        onEnd: ev => onEnd(ev)
+      })
+      
+      gesture.enable(true);
+      
+      const onMove = (ev) => {
+        if (!started) {
+          rootAnimation.progressStart(false, initialStep);
+          started = true;
+        }
+        
+        rootAnimation.progressStep(getStep(ev));
+      }
+      
+      const onEnd = (ev) => {
+        if (!started) { return; }
+        
+        gesture.enable(false);
+        
+        const step = getStep(ev);
+        const shouldComplete = step > 0.5;
+      
+        rootAnimation
+          .progressEnd((shouldComplete) ? 1 : 0, step)
+          .onFinish(() => { gesture.enable(true); });  
+        
+        initialStep = (shouldComplete) ? MAX_TRANSLATE : 0;
+        started = false;
+      }
+      
+      const clamp = (min, n, max) => {
+        return Math.max(min, Math.min(n, max));
+      };
+      
+      const getStep = (ev) => {
+        const delta = initialStep + ev.deltaX;
+        return clamp(0, delta / MAX_TRANSLATE, 1);
+      }
+    }
+    
+    window.onload = () => {
+      setTimeout(() => {
+        initGesture()
+      }, 250);
+    }
+    
+  </script>
 </body>
 
 </html>

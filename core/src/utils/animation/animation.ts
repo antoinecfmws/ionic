@@ -648,6 +648,8 @@ export const createAnimation = (animationId?: string): Animation => {
   };
 
   const update = (deep = false, toggleAnimationName = true, step?: number) => {
+    if (!initialized) { return ani; }
+
     if (deep) {
       childAnimations.forEach(animation => {
         animation.update(deep, toggleAnimationName, step);
